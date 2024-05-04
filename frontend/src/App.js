@@ -1,10 +1,9 @@
-import logo from './logo.svg';
 import './App.css';
-import Chat from './comps/chat';
+import Chat from './comps/Chat';
 
 function App() {
   return (
-    <div className="App">
+    <div className="h-screen w-screen">
       <Chat />
     </div>
   );
