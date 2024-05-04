@@ -22,4 +22,5 @@ yarn-debug.log*
 yarn-error.log*
 
 backend/myenv
+backend/venv
 frontend/node_modules
