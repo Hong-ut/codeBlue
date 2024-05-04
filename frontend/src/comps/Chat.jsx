@@ -9,17 +9,17 @@ const SOCKET_URL = "http://127.0.0.1:5000";
 const Header = () => {
   return (
     <div className="flex items-center justify-center w-full h-24 bg-neutral-100 drop-shadow-lg absolute z-50">
-      <p className="text-2xl font-bold">Code Blue Assistant</p>
+      <p className="text-2xl font-bold">Coding Blue Assistant</p>
     </div>
   )
 }
 
 const Notification = ({icon, content, time}) => {
   return (
-    <div className="flex space-x-3 px-4 py-3 bg-blue-400 items-center rounded-lg w-full drop-shadow-md">
-      <img className="size-4 invert" src={icon} />
+    <div className="flex space-x-3 px-3 py-2 border border-neutral-300 rounded-lg items-center w-full">
+      <img className="size-4" src={icon} />
 
-      <p className="text-md text-white">
+      <p className="text-sm">
         {content}
       </p>
     </div>
@@ -41,15 +41,33 @@ const Message = ({role, message, time}) => {
 
 
 const Chat = () => {
+
+  const [hasInit, setHasInit] = useState(false)
+
   const [socket, setSocket] = useState(null);
   const [timers, setTimers] = useState({1: 0, 2: 0, 3: 0});
 
-  const [events, setEvents] = useState([{type: "notification", content: "ALERT ALERT"}, {type: "user", content: "Hi there"}, {type: "assistant", content: "How can I help?"}])
+  const [events, setEvents] = useState([])
   const eventsRef = useRef(events)
+
 
   useEffect(() => {
     eventsRef.current = events
+
+    if (!hasInit && events.length >= 1) { // Handle init
+
+      if (events[0].content.toLowerCase().includes("codingblue") || events[0].content.toLowerCase().includes("coding blue")) {
+
+        // Call init function
+        console.log("ACTIVATED")
+
+        setHasInit(true)
+      }
+    } 
+
   }, [events])
+
+
 
   useEffect(() => {
     const newSocket = io(SOCKET_URL);
@@ -95,7 +113,7 @@ const Chat = () => {
       {/* <div className="w-full h-full"> */}
         {/* <ScrollToBottom> */}
 
-          <div className="flex flex-col space-y-10 overflow-y-scroll h-full w-full px-6 pt-36 pb-52">
+          <div className="flex flex-col space-y-10 overflow-y-scroll scrollbar-hide h-full w-full px-6 pt-36 pb-52">
             {events.map((event) => 
               event.type === "notification" ?
               <Notification content={event.content} icon="/alert.svg"/> :
@@ -108,9 +126,10 @@ const Chat = () => {
       </div> */}
 
 
-      <div className="w-full bg-gradient-to-t from-blue-400 absolute bottom-0 h-60 flex justify-center">
-      </div>
+      <div className="w-full bg-gradient-to-t from-blue-400 absolute bottom-0 h-36 flex justify-center" />
+   
       <MicButton setEvents={setEvents} eventsRef={eventsRef} />
+
 
       {/* <div>
         <button onClick={() => startTimer(1, 'CPR')}>Start CPR Timer</button>

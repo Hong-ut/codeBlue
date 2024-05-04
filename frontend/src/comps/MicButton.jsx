@@ -1,5 +1,6 @@
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import { useEffect } from 'react';
+import callModel from '../callModel';
 
 const MicButton = ({setEvents, eventsRef}) => {
 
@@ -17,7 +18,16 @@ const MicButton = ({setEvents, eventsRef}) => {
             type: "user",
             content: transcript
         }])
+
+        callModel(transcript).then((modelResponse) => 
+            
+            setEvents([...eventsRef.current, {
+                type: "assistant",
+                content: modelResponse
+            }])
+        )
     }
+
 
 
     if (!browserSupportsSpeechRecognition) {

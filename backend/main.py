@@ -2,12 +2,18 @@
 READ THE readme.md please
 """
 
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 import threading
 import time
 import eventlet
+import cohere
+import os
+from dotenv import load_dotenv, dotenv_values
+
+
+load_dotenv()
 
 # THIS LINE IS NEEDED. LITERALLY WASTED AN HOUR WITH MULTITHREADING/SOCKETIO bug without this line
 eventlet.monkey_patch()
@@ -24,6 +30,10 @@ TIMER_DURATIONS = {
     'DEFIBRILLATOR': 120,  # 2 minutes
     'EPINEPHRINE': 180  # 3 minutes
 }
+
+
+co = cohere.Client(os.getenv("COHERE_API_KEY"))
+
 
 # {user_id: {CPR: 110, ...}}
 # ex: {1: {'CPR': 95}}
@@ -80,6 +90,29 @@ def start_timer():
         timer_threads[timer_id] = thread  # Store thread for potential management
     
     return {'message': 'Timer started'}, 200
+
+
+@app.route('/model_call', methods=['POST'])
+def model_call():
+
+    chat_history = request.json.get('chat_history')
+    prompt = request.json.get('prompt')
+
+    try:
+
+        response = co.chat(
+            chat_history=chat_history,
+            message=prompt,
+        )
+
+        print(response)
+
+        model_response = response.text
+        return jsonify({"response": model_response}), 200
+
+    except Exception as e:
+        return jsonify(e), 400
+
 
 # 
 def tool_use(prompt):
