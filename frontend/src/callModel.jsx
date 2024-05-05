@@ -15,8 +15,7 @@ const callModel = async (prompt, chatHistory=[]) => {
         return data.response
 
     } catch (error) {
-        console.log(error)
-        return error
+        return error.toString()
     }
         
 
