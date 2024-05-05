@@ -35,7 +35,7 @@
     - 'SHOCKED' => Reset the timer to 2 mins
 
 
-3. **start epi timer when "epi" PROMPT is given (Tool use to detect)** (3 mins)
+3. **start epi timer when "epi" PROMPT is given (Tool use to detect)** (3 mins) (ex: "Epinephrine IV 1 mg given")
 - when the epi timer ends, voice output "Epinephrine countdown complete. Can give 2nd IV Epi dose"
 - **RESET THE TIMER WHEN "epi" PROMPT is given**
 - also display total epi dosage at the bottom

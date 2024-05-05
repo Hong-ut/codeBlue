@@ -5,25 +5,24 @@ READ THE readme.md please
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
-import threading
 import time
-import eventlet
 import cohere
 import os
+import eventlet
 from dotenv import load_dotenv, dotenv_values
-
+from tools import tools, FUNCTIONS_MAP, get_few_shot_prompt
+from threads import timer_lock, start_timer_thread
 
 load_dotenv()
 
 # THIS LINE IS NEEDED. LITERALLY WASTED AN HOUR WITH MULTITHREADING/SOCKETIO bug without this line
+# UPDATE: for some reason, we need to disable it now after splitting threads into a diff file
 eventlet.monkey_patch()
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 CORS(app)
 timers = {}
-timer_threads = {}
-timer_lock = threading.Lock()
 
 TIMER_DURATIONS = {
     'CPR': 120,  # 2 minutes
@@ -39,57 +38,55 @@ co = cohere.Client(os.getenv("COHERE_API_KEY"))
 # ex: {1: {'CPR': 95}}
 user_timers = {}
 
-def timer_task(timer_id, user_id, timer_type):
+def timer_task(user_id, timer_type):
     """Function to run as a thread to handle timer counting."""
+    print('testtttttt================')
+    print(user_id)
+    print(timer_type)
     duration = TIMER_DURATIONS[timer_type]
     with timer_lock:
-        timers[timer_id] = duration  
-    
-    while duration > 0:
-        with timer_lock:
-            if timers[timer_id] is None:
-                break  
-            timers[timer_id] -= 1
-            duration = timers[timer_id]
+        print(user_timers)
         if user_id in user_timers:
             user_timers[user_id][timer_type] = duration
         else:    
             user_timers[user_id] = {timer_type: duration}
+    print(f'duration: {duration}')
+    while duration > 0:
+        with timer_lock:
+            if user_timers[user_id][timer_type] is None:
+                break  
+            user_timers[user_id][timer_type] -= 1
+            duration = user_timers[user_id][timer_type]
         print(user_timers)
 
-        socketio.emit('timer_update', {'timer_id': timer_id, 'time': duration})
+        socketio.emit('timer_update', {'timer_type': timer_type, 'time': duration})
 
         time.sleep(1)
 
     with timer_lock:
-        timers.pop(timer_id, None)
-        timer_threads.pop(timer_id, None)
+        user_timers[user_id].pop(timer_type)
+
 
 @app.route('/start_timer', methods=['POST'])
 def start_timer():
     # user_id=1 for now since we don't have auth 
     user_id = 1
-    timer_id = request.json.get('timer_id')
     timer_type = request.json.get('timer_type')
     socketio.emit('timer_update', {'data': 'test'})
-    if timer_id is None or not isinstance(timer_id, int) or timer_id < 1 or timer_id > 3:
-        return {'error': 'Invalid timer ID'}, 400
     if timer_type not in TIMER_DURATIONS:
         return {'error': 'Invalid timer type'}, 400
 
     with timer_lock:
-        if timer_id in timers and timers[timer_id] is not None:
+        if user_id in user_timers and timer_type in user_timers[user_id]:
             return {'error': 'Timer already running'}, 400
         
         # Start a new timer thread
-        thread = threading.Thread(target=timer_task, args=(timer_id, user_id, timer_type))
-        # socketio.start_background_task(timer_task, timer_id, user_id, timer_type)
-
-        thread.daemon = True
-        thread.start()
-        timer_threads[timer_id] = thread  # Store thread for potential management
+        start_timer_thread(user_id, timer_type, timer_task)
     
-    return {'message': 'Timer started'}, 200
+    
+    return jsonify({'message': 'Timer started'}), 200
+
+
 
 
 @app.route('/model_call', methods=['POST'])
@@ -114,8 +111,8 @@ def model_call():
         return jsonify(e), 400
 
 
-# 
-def tool_use(prompt):
+@app.route('/tool_use_timer', methods=['POST'])
+def tool_use_timer():
     """
     use tool use to decide which action to take. 
     actions = ['epi_timer', 'DEFIBRILLATOR_timer']
@@ -124,8 +121,31 @@ def tool_use(prompt):
     prompt="200J given on biphasic debrillator"
     => ideal_action: start the DEFIBRILLATOR_timer, and record the action 
     """
-    # REMINDER: CPR timer starts after user makes a click. So no tool use needed for the CPR timer
+    try:
+        preamble = """
+            ## Task & Context
+            You help people decide which countdown timer to execute based on the given prompt. 
+        """
+        prompt = request.json.get('prompt')
+        prompt = get_few_shot_prompt(prompt)
+        response = co.chat(
+            message=prompt,
+            tools=tools,
+            preamble=preamble,
+            model="command-r"
+        )
+        for tool_call in response.tool_calls:
+            # activate the appropriate timer based on the prompt
+            print(tool_call.name)
+            print(FUNCTIONS_MAP[tool_call.name])
+            # user_id, timer_type, task_function
+            params = {'task_function': timer_task}
+            FUNCTIONS_MAP[tool_call.name](**params)
 
+        return jsonify({'message': f"{tool_call.name} Executed"}), 200
+
+    except Exception as e:
+        return jsonify(e), 400
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)

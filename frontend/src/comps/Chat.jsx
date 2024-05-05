@@ -321,6 +321,7 @@ const Chat = () => {
 
     newSocket.on('timer_update', (data) => {
       setTimers(prev => ({...prev, [data.timer_id]: data.time}));
+      console.log(data)
     });
 
     return () => newSocket.close();
@@ -335,6 +336,7 @@ const Chat = () => {
     <div className='flex flex-col items-center h-full w-full relative'>
 
       <Header />
+     
         <div className="flex flex-col space-y-10 overflow-y-scroll scrollbar-hide h-full w-full px-6 pt-36 pb-52">
           {events.map((event) => {
 
@@ -357,7 +359,7 @@ const Chat = () => {
 
 
       <div className="w-full bg-gradient-to-t from-blue-400 absolute bottom-0 h-36 flex justify-center" />
-   
+      
       <MicButton listening={listening} transcript={transcript} resetTranscript={resetTranscript}  />
 
 
