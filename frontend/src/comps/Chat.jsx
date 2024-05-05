@@ -215,6 +215,8 @@ const TimerComp = ({timerType, timers, setEvents, overrideInput=false, hiddenAct
     if (hasStarted && timers[timerType] == 0) { // if the timer is finished
       setHasFinished(true)
 
+      const beepAudio = new Audio(`${process.env.PUBLIC_URL}/beep.mp3`);
+      beepAudio.play()
 
       // Cleaning up hiddenActiveTimers
       const index = hiddenActiveTimers.findIndex(obj => obj.timerType === timerType);
@@ -402,7 +404,7 @@ const Chat = () => {
 
   const eventsContainerRef = useRef(null);
 
-  
+
   // makes chat auto scroll to the bottom
   useEffect(() => {
     const eventsContainer = eventsContainerRef.current;
