@@ -16,23 +16,22 @@ const TimerDurations = {
 }
 
 
-
-const startTimer = async (timerId, timerType) => {
+const startTimer = async (timerType) => {
   try{
       const response = await fetch('http://127.0.0.1:5000/start_timer', {
       method: 'POST',
       headers: {
           'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ timer_id: timerId, timer_type: timerType }),
+      body: JSON.stringify({ timer_type: timerType }),
       })
       const data = await response.json();
       console.log(data)
   } catch (error) {
       console.log(error)
   }
-  
 };
+
 
 const Header = () => {
   return (
@@ -63,18 +62,18 @@ const Notification = ({icon, content, time}) => {
 }
 
 
-const InitButton = ({setHasInit}) => {
+const InitButton = ({setHasInit, hasInit}) => {
 
   return (
     <div className="flex justify-center itmes-center px-4 py-4 border-2 border-neutral-200 drop-shadow-lg rounded-lg items-center w-full">
       <div 
         className="hover:bg-blue-400 space-x-3 cursor-pointer flex justify-center items-center p-4 rounded-lg drop-shadow-lg bg-blue-700 transition-all duration-300 ease-in-out"
-        onClick={() => {setHasInit(true)}}
+        onClick={() => !hasInit ? setHasInit(true) : null}
      >
 
         <div className="rounded-full bg-blue-200 size-3 animate-pulse"/>
         <p className="text-lg text-white font-bold">
-          CODE LAUNCH
+          {hasInit ? "CODE LAUNCHED" : "CODE LAUNCH"}
         </p>
       </div>
   </div>
@@ -86,9 +85,12 @@ const TimersDisplay = ({timerId, timerType, timers, setEvents}) => {
   const [hasStarted, setHasStarted] = useState(false)
   const hasStartedRef = useRef(hasStarted)
 
+
+  console.log(timers)
+
   useEffect(() => {
 
-    if (hasStarted && timers[timerId] == 0) {
+    if (hasStarted && timers[timerType] == 0) {
       setEvents(draft => {
         draft.push({
           type: "notification",
@@ -124,7 +126,7 @@ const TimersDisplay = ({timerId, timerType, timers, setEvents}) => {
 
       })
     }
-  }, [timers[timerId]])
+  }, [timers[timerType]])
   
 
   useEffect(() => {
@@ -147,7 +149,7 @@ const TimersDisplay = ({timerId, timerType, timers, setEvents}) => {
       {!hasStarted ?
       <div 
         className="hover:bg-green-400 space-x-3 cursor-pointer flex justify-center items-center p-4 rounded-lg drop-shadow-lg bg-green-600 transition-all duration-300 ease-in-out"
-        onClick={() => {startTimer(timerId, timerType); setHasStarted(true)}}
+        onClick={() => {startTimer(timerType); setHasStarted(true)}}
      >
 
         <img src="/clock.svg" className="invert size-5 animate-pulse"/>
@@ -158,7 +160,7 @@ const TimersDisplay = ({timerId, timerType, timers, setEvents}) => {
 
       <div className="flex justify-center items-center p-4 rounded-lg drop-shadow-lg bg-green-600">
         <p className="text-white text-lg fond-bold">
-          {`${timerType} - ${getTimeStringFromInt(timers[timerId])}`}
+          {`${timerType} - ${getTimeStringFromInt(timers[timerType])}`}
         </p>
       </div>
       }
@@ -320,8 +322,7 @@ const Chat = () => {
     setSocket(newSocket);
 
     newSocket.on('timer_update', (data) => {
-      setTimers(prev => ({...prev, [data.timer_id]: data.time}));
-      console.log(data)
+      setTimers(prev => ({...prev, [data.timer_type]: data.time}));
     });
 
     return () => newSocket.close();
@@ -344,7 +345,7 @@ const Chat = () => {
                 return <Notification content={event.content} icon={event.icon} time={event.time}/> 
 
               } else if (event.type === "init_prompt") {
-                return <InitButton setHasInit={setHasInit}/>
+                return <InitButton setHasInit={setHasInit} hasInit={hasInit}/>
 
               } else if (event.type === "timer") {
                 return <TimersDisplay setEvents={setEvents} timers={timers} timerId={event.timerId} timerType={event.timerType} />
