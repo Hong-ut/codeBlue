@@ -159,6 +159,7 @@ const Chat = () => {
 
     newSocket.on('timer_update', (data) => {
       setTimers(prev => ({...prev, [data.timer_id]: data.time}));
+      console.log(data)
     });
 
     return () => newSocket.close();
@@ -170,14 +171,15 @@ const Chat = () => {
   }, [socket])
 
 
-  const startTimer = async (timerId, timerType) => {
+  const startTimer = async (timerType) => {
     try{
+      console.log('test')
         const response = await fetch('http://127.0.0.1:5000/start_timer', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ timer_id: timerId, timer_type: timerType }),
+        body: JSON.stringify({ timer_type: timerType }),
         })
         const data = await response.json();
         console.log(data)
@@ -189,8 +191,11 @@ const Chat = () => {
 
   return (
     <div className='flex flex-col items-center h-full w-full relative'>
-
+      <button onClick={() => startTimer('CPR')}>CPR Timer</button>
+      <button onClick={() => startTimer('EPINEPHRINE')}>EPI TIMER</button>
       <Header />
+      <button className='bg-black text-4xl text-white' onClick={() => startTimer('CPR')}>CPR Timer</button>
+      <button className='bg-black text-4xl text-white' onClick={() => startTimer('EPINEPHRINE')}>EPI TIMER</button>
         <div className="flex flex-col space-y-10 overflow-y-scroll scrollbar-hide h-full w-full px-6 pt-36 pb-52">
           {events.map((event) => {
 
@@ -212,8 +217,8 @@ const Chat = () => {
 
 
       <div className="w-full bg-gradient-to-t from-blue-400 absolute bottom-0 h-36 flex justify-center" />
-   
-      <MicButton listening={listening} transcript={transcript} resetTranscript={resetTranscript}  />
+      
+      {/* <MicButton listening={listening} transcript={transcript} resetTranscript={resetTranscript}  /> */}
 
 
       {/* <div>
