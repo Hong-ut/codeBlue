@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import MicButton from './MicButton';
 import ScrollToBottom from 'react-scroll-to-bottom';
+import callModel from '../callModel';
+import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
+import { useImmer } from "use-immer";
+
 
 const SOCKET_URL = "http://127.0.0.1:5000";
 
@@ -26,6 +30,20 @@ const Notification = ({icon, content, time}) => {
   )
 }
 
+const InitPrompt = () => {
+
+  return (
+    <div className="flex justify-center itmes-center px-4 py-4 border-2 border-neutral-200 drop-shadow-lg rounded-lg items-center w-full">
+      <div className="hover:bg-blue-400 cursor-pointer flex justify-center items-center p-4 rounded-lg drop-shadow-lg bg-blue-700 transition-all duration-300 ease-in-out">
+        <div className="rounded-full bg-blue-200"/>
+        <p className="text-lg text-white">
+          CODE LAUNCH
+        </p>
+      </div>
+  </div>
+  )
+}
+
 const Message = ({role, message, time}) => {
 
   return (
@@ -39,7 +57,6 @@ const Message = ({role, message, time}) => {
 
 
 
-
 const Chat = () => {
 
   const [hasInit, setHasInit] = useState(false)
@@ -47,35 +64,100 @@ const Chat = () => {
   const [socket, setSocket] = useState(null);
   const [timers, setTimers] = useState({1: 0, 2: 0, 3: 0});
 
-  const [events, setEvents] = useState([])
-  const eventsRef = useRef(events)
+  const [events, setEvents] = useImmer([])
 
 
+
+
+  const [isRecording, setIsRecording] = useState(false)
+  const triggerWord = "coding blue"
+  const stopWord = 'stop';
+
+  const {
+    transcript,
+    listening,
+    resetTranscript,
+    browserSupportsSpeechRecognition
+  } = useSpeechRecognition();
+
+  if (!browserSupportsSpeechRecognition) {
+      console.log("ERRORRRRRR")
+  }
+
+  // enables listening on component mount
   useEffect(() => {
-    eventsRef.current = events
+    SpeechRecognition.startListening({ continuous: true });
+  }, []);
 
-    if (!hasInit && events.length >= 1) { // Handle init
 
-      if (events[0].content.toLowerCase().includes("codingblue") || events[0].content.toLowerCase().includes("coding blue")) {
+  // Effect that checks for the trigger and stop words
+  useEffect(() => {
 
-        // Call init function
-        console.log("ACTIVATED")
+    
+    // Check if the trigger word is detected
+    if (transcript.toLowerCase().includes(triggerWord)) {
+      console.log("RECORDING ON")
+      setIsRecording(true);
+      resetTranscript(); // Clear the transcript to avoid repeated triggers
+    }
+
+    // Check if the stop word is detected
+    if (transcript.toLowerCase().includes(stopWord)) {
+
+      setIsRecording(false);
+      console.log("RECORDING OFF")
+      let message = transcript.replace(stopWord, "")
+
+      setEvents(draft => {
+        draft.push({
+          type: "user",
+          content: message
+        })
+      })
+
+      if (!hasInit) { // If Code Blue has not been initialized
+
+        setEvents(draft => {
+          draft.push({
+            type: "assistant",
+            content: "Voice input recognized. Please click Launch to proceed."
+          })
+
+          draft.push(
+            {
+              type: "init_prompt"
+            }
+          )
+        })
 
         setHasInit(true)
+  
+      } else { // If it has been initialized
+  
+        callModel(message).then((modelResponse) => 
+          
+          setEvents(draft => {
+            draft.push({
+              type: "assistant",
+              content: modelResponse 
+            })
+          })
+        )
       }
-    } 
 
-  }, [events])
+      resetTranscript(); // Clear the transcript to avoid repeated triggers
+
+    }
+
+  }, [transcript, isRecording, resetTranscript]);
 
 
-
+  
   useEffect(() => {
     const newSocket = io(SOCKET_URL);
-    console.log(socket)
     setSocket(newSocket);
 
     newSocket.on('timer_update', (data) => {
-    console.log(data)
       setTimers(prev => ({...prev, [data.timer_id]: data.time}));
     });
 
@@ -109,26 +191,29 @@ const Chat = () => {
     <div className='flex flex-col items-center h-full w-full relative'>
 
       <Header />
+        <div className="flex flex-col space-y-10 overflow-y-scroll scrollbar-hide h-full w-full px-6 pt-36 pb-52">
+          {events.map((event) => {
 
-      {/* <div className="w-full h-full"> */}
-        {/* <ScrollToBottom> */}
+              if (event.type === "notification") {
+                return <Notification content={event.content} icon="/alert.svg"/> 
 
-          <div className="flex flex-col space-y-10 overflow-y-scroll scrollbar-hide h-full w-full px-6 pt-36 pb-52">
-            {events.map((event) => 
-              event.type === "notification" ?
-              <Notification content={event.content} icon="/alert.svg"/> :
-              <Message role={event.type} message={event.content} />
-            )}
+              } else if (event.type === "init_prompt") {
+                return <InitPrompt />
 
-          </div>
+              } else {
+                return <Message role={event.type} message={event.content} />
+              }
 
-        {/* </ScrollToBottom>
-      </div> */}
+            }
+    
+          )}
+
+        </div>
 
 
       <div className="w-full bg-gradient-to-t from-blue-400 absolute bottom-0 h-36 flex justify-center" />
    
-      <MicButton setEvents={setEvents} eventsRef={eventsRef} />
+      <MicButton listening={listening} transcript={transcript} resetTranscript={resetTranscript}  />
 
 
       {/* <div>

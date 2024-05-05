@@ -16,6 +16,7 @@ const callModel = async (prompt, chatHistory=[]) => {
 
     } catch (error) {
         console.log(error)
+        return error
     }
         
 
