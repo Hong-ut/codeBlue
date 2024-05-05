@@ -127,6 +127,8 @@ def tool_use_timer():
             You help people decide which countdown timer to execute based on the given prompt. 
         """
         prompt = request.json.get('prompt')
+        log_message = get_log_message(prompt)
+
         prompt = get_few_shot_prompt(prompt)
         response = co.chat(
             message=prompt,
@@ -134,6 +136,7 @@ def tool_use_timer():
             preamble=preamble,
             model="command-r"
         )
+
         for tool_call in response.tool_calls:
             # activate the appropriate timer based on the prompt
             print(tool_call.name)
@@ -142,10 +145,36 @@ def tool_use_timer():
             params = {'task_function': timer_task}
             FUNCTIONS_MAP[tool_call.name](**params)
 
-        return jsonify({'message': f"{tool_call.name} Executed"}), 200
+        return jsonify({'tool': f"{tool_call.name}", 'log_message': log_message}), 200
+
 
     except Exception as e:
         return jsonify(e), 400
+
+
+def get_log_message(input_text):
+    preamble = """
+        ## Task & Context
+        You help decipher the proper intended wording of text originating from voice input, and provide
+        a corrected version of the text.
+    """
+    prompt = f"""Here is voice input converted to text from an emergency room doctor 
+                in a Code Blue scenario. The voice to text engine may be inaccurate 
+                so you must decipher what the given sentence means if there are any 
+                typos or words that don't make sense. 
+                
+                Here is the voice input: {input_text}.
+                
+                Give JUST the corrected text and nothing else.
+                """
+    
+    response = co.chat(
+        message=prompt,
+        preamble=preamble,
+        model="command-r"
+    )
+
+    return response.text
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)

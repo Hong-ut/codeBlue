@@ -7,11 +7,14 @@ def start_DEFIBRILLATOR_timer(task_function):
     with timer_lock:
         start_timer_thread(user_id, timer_type, task_function)
 
+
+
 def start_EPINEPHRINE_timer(task_function):
     user_id = 1
     timer_type = 'EPINEPHRINE'
     with timer_lock:
         start_timer_thread(user_id, timer_type, task_function)
+
 
 FUNCTIONS_MAP = {
     'start_DEFIBRILLATOR_timer': start_DEFIBRILLATOR_timer,

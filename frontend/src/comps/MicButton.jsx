@@ -3,15 +3,12 @@ import { useEffect } from 'react';
 import callModel from '../callModel';
 
 const MicButton = ({
-    transcript,
-    listening,
-    resetTranscript,
-    handleNewMessage
+    isRecording
     }) => {
 
     return (
         <div 
-            className={`border-white border-2 hover:scale-105 transition-all duration-200 ease-in-out rounded-full bg-blue-700 p-10 cursor-pointer absolute bottom-5 drop-shadow-xl ${listening ? "animate-pulse" : ""} backdrop-blur-lg`}
+            className={`border-white border-2 hover:scale-105 transition-all duration-200 ease-in-out rounded-full bg-blue-700 p-10 cursor-pointer absolute bottom-5 drop-shadow-xl ${isRecording ? "animate-pulse" : ""} backdrop-blur-lg`}
         >
 
             <img 
