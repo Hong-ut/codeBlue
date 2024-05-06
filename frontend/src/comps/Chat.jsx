@@ -12,12 +12,17 @@ import { useTts } from 'tts-react'
 
 const SOCKET_URL = "http://127.0.0.1:5000";
 
-const TimerDurations = {
+const timerDurations = {
   CPR: 120, 
   DEFIBRILLATOR: 120,  
   EPINEPHRINE: 180
 }
 
+const timerColours = {
+  CPR: {prog: "#a85661", main: "#871c2b"},
+  DEFIBRILLATOR: {prog: "#24ad64", main: "#0b4f26"},  
+  EPINEPHRINE: {prog: "#dec554", main: "#ad7f24"}
+}
 
 const startTimer = async (timerType) => {
   try{
@@ -46,7 +51,13 @@ const Header = () => {
 
 const Notification = ({icon, content, time}) => {
   return (
-    <div className="flex space-x-3 px-3 py-2 border border-neutral-300 rounded-lg items-center w-full">
+    <motion.div 
+      layout
+      initial={{ scale: 0.7, opacity: 0, }}
+      animate={{ scale: 1, opacity: 1,  }}
+      transition={{ type: 'spring', stiffness: 200, damping: 20, duration: 100 }}
+      className="flex space-x-3 px-3 py-2 border border-neutral-300 rounded-lg items-center w-full"
+    >
      
       <div className="flex space-x-1 items-center">
         <img className="size-5" src={icon} />
@@ -59,7 +70,7 @@ const Notification = ({icon, content, time}) => {
         {content}
       </p>
 
-    </div>
+    </motion.div>
   )
 }
 
@@ -135,12 +146,14 @@ const TimersDisplay = ({timers, timerType, randoId}) => {
 
   return (
       <motion.div 
+        layout
         key={timerType}
-        className={`flex flex-col justify-center bg-opacity-90 border-white border-2 backdrop-blur-xl space-y-3 items-center w-full p-4 rounded-lg drop-shadow-xl bg-blue-900 ${ping && "animate-pulse"}`}
-        initial={{ scale: 0.7, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.7, opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+        style={{backgroundColor: timerColours[timerType].main}}
+        className={`flex flex-col justify-center bg-opacity-90 border-white border-2 backdrop-blur-xl space-y-3 items-center w-full p-4 rounded-lg drop-shadow-xl ${ping && "animate-pulse"}`}
+        initial={{ scale: 0.7, opacity: 0, }}
+        animate={{ scale: 1, opacity: 1,  }}
+        exit={{ scale: 0.7, opacity: 0, transition: { type: 'spring', stiffness: 200, damping: 20, duration:100 } }}
+        transition={{ type: 'spring', stiffness: 200, damping: 20, duration: 300 }}
       >
           
       <p className="font-bold text-white">
@@ -149,7 +162,7 @@ const TimersDisplay = ({timers, timerType, randoId}) => {
 
       <div className="flex space-x-3 items-center justify-center w-full">
         <p className="text-white">{getTimeStringFromInt(timers[timerType])}</p>
-        <ProgressBar height="1.5rem" className="w-full" bgColor='#3495eb' initCompletedOnAnimation={"100"} transitionTimingFunction="ease" transitionDuration={"0.5s"} isLabelVisible={false} completed={(timers[timerType] / TimerDurations[timerType]) * 100} />
+        <ProgressBar height="1.5rem" className="w-full" bgColor={timerColours[timerType].prog} initCompletedOnAnimation={"100"} transitionTimingFunction="ease" transitionDuration={"0.5s"} isLabelVisible={false} completed={(timers[timerType] / timerDurations[timerType]) * 100} />
       </div>
 
     </motion.div>
@@ -164,21 +177,22 @@ const TimerComp = ({timerType, timers, setEvents, overrideInput=false, hiddenAct
   const [hasFinished, setHasFinished] = useState(false) // used to keep track when timer ends
 
   const [ping, setPing] = useState(false)
-
-
+ 
   const { ref, inView } = useInView({
     threshold: 1,
     rootMargin: "0% 0% 0% 0%",
   });
 
+  const [animationComplete, setAnimationComplete] = useState(false)
 
   // Handles showing hidden timers in the UI
   useEffect(() => {
 
-    if (!hasFinished) {
+    if (!hasFinished && animationComplete) {
       const index = hiddenActiveTimers.findIndex(obj => obj.timerType === timerType);
 
       if (hasStarted && !inView && index == -1 && !hasFinished) { // if the Timer is out of view and is not in the hiddenTimers, add it
+        console.log("ADDING")
         setHiddenActiveTimers(draft => {
           draft.push({
             timerType: timerType,
@@ -208,23 +222,27 @@ const TimerComp = ({timerType, timers, setEvents, overrideInput=false, hiddenAct
   }, [])
 
 
-
   // Handles when the timer has finished/timer is near finish
   useEffect(() => {
 
-    if (hasStarted && timers[timerType] == 0) { // if the timer is finished
+
+    if (!hasFinished && hasStarted && timers[timerType] == 0) { // if the timer is finished
       setHasFinished(true)
 
       const beepAudio = new Audio(`${process.env.PUBLIC_URL}/beep.mp3`);
+      beepAudio.volume = 0.3; // Lowering volume to 30%
       beepAudio.play()
 
       // Cleaning up hiddenActiveTimers
       const index = hiddenActiveTimers.findIndex(obj => obj.timerType === timerType);
 
+      
       if ((index != -1)) { 
-        setHiddenActiveTimers(draft => {
+        console.log("REMOVING")
+        setTimeout(() => setHiddenActiveTimers(draft => {
           draft.splice(index, 1)
-        })
+        }), 1000)
+    
 
       }
 
@@ -291,7 +309,7 @@ const TimerComp = ({timerType, timers, setEvents, overrideInput=false, hiddenAct
         }
       });
 
-    } else if (hasStarted && timers[timerType] == 15) { // If timer is 15 seconds, enable pulse animation
+    } else if (!hasFinished && hasStarted && timers[timerType] == 15) { // If timer is 15 seconds, enable pulse animation
       setPing(true)
     }
 
@@ -315,11 +333,20 @@ const TimerComp = ({timerType, timers, setEvents, overrideInput=false, hiddenAct
 
 
   return (
-    <div ref={ref} className={`flex justify-center itmes-center px-4 py-4 border-2 border-neutral-200 drop-shadow-lg rounded-lg items-center w-full`}>
+    <motion.div 
+      layout
+      initial={{ scale: 0.7, opacity: 0, }}
+      animate={{ scale: 1, opacity: 1,  }}
+      transition={{ type: 'spring', stiffness: 200, damping: 20, duration: 50 }}
+      onAnimationComplete={() => setTimeout(() => setAnimationComplete(true), 1000)}
+      ref={ref} 
+      className={`flex justify-center itmes-center px-4 py-4 border-2 border-neutral-200 drop-shadow-lg rounded-lg items-center w-full`}
+    >
       
       {!hasStarted ?
       <div 
-        className="hover:bg-blue-700 space-x-3 cursor-pointer flex justify-center items-center p-4 rounded-lg drop-shadow-lg bg-blue-900 transition-all duration-300 ease-in-out"
+        style={{backgroundColor: timerColours[timerType].main}}
+        className="space-x-3 cursor-pointer flex justify-center items-center p-4 rounded-lg drop-shadow-lg transition-all duration-300 ease-in-out"
         onClick={() => {startTimer(timerType); setHasStarted(true)}}
      >
 
@@ -329,7 +356,10 @@ const TimerComp = ({timerType, timers, setEvents, overrideInput=false, hiddenAct
         </p>
       </div> :
 
-      <div className={`flex flex-col justify-center space-y-3 items-center w-full p-4 rounded-lg drop-shadow-lg bg-blue-900 ${ping && "animate-pulse"}`}>
+      <div 
+        style={{backgroundColor: timerColours[timerType].main}}
+        className={`flex flex-col justify-center space-y-3 items-center w-full p-4 rounded-lg drop-shadow-lg ${ping && "animate-pulse"}`}
+      >
         
         <p className="font-bold text-white">
           {timerType}
@@ -337,14 +367,14 @@ const TimerComp = ({timerType, timers, setEvents, overrideInput=false, hiddenAct
 
         <div className="flex space-x-3 items-center justify-center w-full">
           <p className="text-white">{`${!hasFinished ? getTimeStringFromInt(timers[timerType]) : "00:00"}`}</p>
-          <ProgressBar height="1.5rem" className="w-full" bgColor='#3495eb' initCompletedOnAnimation={"100"} transitionTimingFunction="ease" transitionDuration={"0.5s"} isLabelVisible={false} completed={hasFinished ? 0 : (timers[timerType] / TimerDurations[timerType]) * 100} />
+          <ProgressBar height="1.5rem" className="w-full" bgColor={timerColours[timerType].prog} initCompletedOnAnimation={"100"} transitionTimingFunction="ease" transitionDuration={"0.5s"} isLabelVisible={false} completed={hasFinished ? 0 : (timers[timerType] / timerDurations[timerType]) * 100} />
         </div>
 
       </div>
 
       }
 
-  </div>
+  </motion.div>
   )
 }
 
@@ -352,11 +382,17 @@ const TimerComp = ({timerType, timers, setEvents, overrideInput=false, hiddenAct
 const Message = ({role, message, time}) => {
 
   return (
-      <div className={`w-full flex ${role === "user" ? "justify-end" : "justify-start"}`}>
+      <motion.div 
+        layout
+        initial={{ scale: 0.7, opacity: 0, }}
+        animate={{ scale: 1, opacity: 1,  }}
+        transition={{ type: 'spring', stiffness: 200, damping: 20, duration: 100 }}
+        className={`w-full flex ${role === "user" ? "justify-end" : "justify-start"}`}
+      >
         <div className={`w-3/5 drop-shadow-md px-4 py-3 rounded-lg ${role === "user" ? "bg-blue-200" : "bg-blue-800 text-white"}`}>
           {message}
         </div>
-      </div>
+      </motion.div>
   )
 }
 
@@ -469,7 +505,7 @@ const Chat = () => {
 
       setIsRecording(false);
       console.log("RECORDING OFF")
-      let message = transcript.replace(stopWord, "")
+      let message = transcript.replace(stopWord, "").toLowerCase()
 
       setEvents(draft => {
         draft.push({
@@ -494,21 +530,41 @@ const Chat = () => {
         })
 
       } else { // If it has been initialized
-        
-        callModel(message).then((modelCallResult) => 
-          
+        console.log(message)
+        console.log(message.includes("jot"))
+        if (message.includes("log") || message.includes("jot") || message.includes("note")) {
+          // temporary hard coded logging functionality.. will replace with tool later
+
           setEvents(draft => {
             draft.push({
               type: "notification",
               time: Date.now(),
               icon: "/clock.svg",
-              content: modelCallResult.logMessage
+              content: message
             });            
-            
-            draft.push({type: "timer", timerType: modelCallResult.tool, overrideInput: true})
-          
+                      
           })
-        )
+
+        } else {
+          callModel(message).then((modelCallResult) => 
+            
+            setEvents(draft => {
+              draft.push({
+                type: "notification",
+                time: Date.now(),
+                icon: "/clock.svg",
+                content: modelCallResult.logMessage
+              });            
+              
+              draft.push({type: "timer", timerType: modelCallResult.tool, overrideInput: true})
+            
+            })
+          )
+        }
+
+
+
+
       }
 
       resetTranscript(); // Clear the transcript to avoid repeated triggers
@@ -536,7 +592,9 @@ const Chat = () => {
 
       <Header />
 
-      <div className="w-full px-5 fixed top-0 mt-28 flex-col space-y-5 justify-center z-50">
+      <div 
+        className="w-full px-5 fixed top-0 mt-28 flex-col space-y-5 justify-start z-50"
+      >
         <AnimatePresence>
         {hiddenActiveTimers.map((timer, idx) => 
           <TimersDisplay key={timer.randoId} timers={timers} timerType={timer.timerType} randoId={timer.randoId} />
@@ -544,25 +602,29 @@ const Chat = () => {
         </AnimatePresence>
       </div>
      
-        <div ref={eventsContainerRef} className="flex flex-col space-y-10 overflow-y-scroll scrollbar-hide h-full w-full px-6 pt-36 pb-52">
-          {events.map((event, idx) => {
+        <motion.div 
+          ref={eventsContainerRef} 
+          className="flex flex-col space-y-10 overflow-y-scroll scrollbar-hide h-full w-full px-6 pt-36 pb-52"
+        >
+          <AnimatePresence>
+            {events.map((event, idx) => {
 
-              if (event.type === "notification") {
-                return <Notification key={idx} content={event.content} icon={event.icon} time={event.time}/> 
+                if (event.type === "notification") {
+                  return <Notification key={idx} content={event.content} icon={event.icon} time={event.time}/> 
 
-              } else if (event.type === "init_prompt") {
-                return <InitButton key={idx} setHasInit={setHasInit} hasInit={hasInit}/>
+                } else if (event.type === "init_prompt") {
+                  return <InitButton key={idx} setHasInit={setHasInit} hasInit={hasInit}/>
 
-              } else if (event.type === "timer") {
-                return <TimerComp hiddenActiveTimers={hiddenActiveTimers} setHiddenActiveTimers={setHiddenActiveTimers} key={idx} overrideInput={event.overrideInput} setEvents={setEvents} timers={timers} timerType={event.timerType} />
+                } else if (event.type === "timer") {
+                  return <TimerComp hiddenActiveTimers={hiddenActiveTimers} setHiddenActiveTimers={setHiddenActiveTimers} key={idx} overrideInput={event.overrideInput} setEvents={setEvents} timers={timers} timerType={event.timerType} />
 
-              } else {
-                return <Message key={idx} role={event.type} message={event.content} />
+                } else {
+                  return <Message key={idx} role={event.type} message={event.content} />
+                }
               }
-            }
-          )}
-
-        </div>
+            )}
+          </AnimatePresence>
+        </motion.div>
 
 
       <div className="w-full bg-gradient-to-t from-blue-400 absolute bottom-0 h-36 flex justify-center" />
