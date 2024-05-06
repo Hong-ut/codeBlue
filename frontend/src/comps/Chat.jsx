@@ -338,7 +338,7 @@ const TimerComp = ({timerType, timers, setEvents, overrideInput=false, hiddenAct
       initial={{ scale: 0.7, opacity: 0, }}
       animate={{ scale: 1, opacity: 1,  }}
       transition={{ type: 'spring', stiffness: 200, damping: 20, duration: 50 }}
-      onAnimationComplete={() => setTimeout(() => setAnimationComplete(true), 1000)}
+      onAnimationComplete={() => setTimeout(() => setAnimationComplete(true), 5000)}
       ref={ref} 
       className={`flex justify-center itmes-center px-4 py-4 border-2 border-neutral-200 drop-shadow-lg rounded-lg items-center w-full`}
     >
